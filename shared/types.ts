@@ -1,0 +1,57 @@
+export type CardType = "bot" | "action";
+
+export type CardEffect = { kind: "heal"; amount: number };
+
+export type CardStatus =
+	| { kind: "temporary"; name: string; turnsRemaining: number }
+	| { kind: "permanent"; name: string };
+
+export interface Card {
+	name: string;
+	type: CardType;
+	atk: number;
+	hp: { current: number; max: number };
+	status: CardStatus[];
+	effect?: CardEffect;
+}
+
+/** A copy of a card that lives inside a game and can track runtime state. */
+export type GameCard = Card;
+
+/** A player's persistent identity and deck (lobby-side). */
+export interface Player {
+	name: string;
+	starter: Card;
+	deck: Card[];
+}
+
+/** One player's live state within a game. Board slots are left-to-right, 0-2. */
+export interface GamePlayer {
+	name: string;
+	starter: Card;
+	deck: Card[];
+	board: (GameCard | null)[];
+}
+
+export interface Game {
+	id: string;
+	players: GamePlayer[];
+	/** Observer names. Observers are not part of the game's player list. */
+	observers: string[];
+	/** Shared discard/scrap pile, not part of either player's deck. */
+	scrapPile: GameCard[];
+}
+
+/** A lightweight view of a game for lobby listings. */
+export interface GameSummary {
+	id: string;
+	players: string[];
+	playerCount: number;
+	open: boolean;
+	observerCount: number;
+}
+
+export interface ServerState {
+	players: Player[];
+	games: Record<string, Game>;
+}

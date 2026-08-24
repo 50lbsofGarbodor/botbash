@@ -1,0 +1,40 @@
+{
+  "name": "bot-bash",
+  "version": "0.1.0",
+  "private": true,
+  "type": "module",
+  "scripts": {
+    "dev": "vite-node server/index.ts",
+    "build": "tsc -p tsconfig.json && tsc -p tsconfig.server.json && vite build",
+    "preview": "vite preview",
+    "test": "vitest run",
+    "lint": "biome lint && node scripts/max-lines.mjs",
+    "check": "pnpm lint && pnpm test && pnpm build",
+    "format": "biome format --write"
+  },
+  "dependencies": {
+    "express": "^4.19.2",
+    "konva": "^9.3.13",
+    "react": "^18.3.1",
+    "react-dom": "^18.3.1",
+    "react-konva": "^18.2.10",
+    "react-router-dom": "^6.26.0",
+    "react-spring": "^9.7.3",
+    "socket.io": "^4.7.5",
+    "socket.io-client": "^4.7.5",
+    "vite-express": "^0.16.0",
+    "zustand": "^4.5.4"
+  },
+  "devDependencies": {
+    "@biomejs/biome": "^2.5.10",
+    "@types/express": "^4.17.21",
+    "@types/node": "^20.14.15",
+    "@types/react": "^18.3.4",
+    "@types/react-dom": "^18.3.0",
+    "@vitejs/plugin-react": "^4.3.1",
+    "typescript": "^5.5.4",
+    "vite": "^5.4.0",
+    "vite-node": "^2.0.5",
+    "vitest": "^2.0.5"
+  }
+}
