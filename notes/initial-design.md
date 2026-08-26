@@ -122,7 +122,6 @@ Phases:
 deploy to).
 - Action (each player can pick a non-bot card and play it)
 - Combat
-- Discard
 
 Only the deploy and action phases involve player input.
 

@@ -1,6 +1,13 @@
 import { describe, expect, it } from "vitest";
 import type { Game, ServerState } from "../shared/types";
-import { createGame, joinGame, leaveGame, playerInGame, summarizeGames } from "./games";
+import {
+	createGame,
+	deleteGame,
+	joinGame,
+	leaveGame,
+	playerInGame,
+	summarizeGames,
+} from "./games";
 import { getOrCreatePlayer } from "./players";
 
 function freshState(names: string[]): ServerState {
@@ -20,7 +27,11 @@ describe("games", () => {
 		const game = expectGame(createGame(state, "Alice"));
 		expect(game.players).toHaveLength(1);
 		expect(game.players[0].name).toBe("Alice");
-		expect(game.players[0].board).toEqual([null, game.players[0].starter, null]);
+		expect(game.players[0].board).toEqual([
+			null,
+			game.players[0].starter,
+			null,
+		]);
 		expect(game.observers).toEqual([]);
 		expect(playerInGame(state, "Alice")).toBe(game.id);
 	});
@@ -85,5 +96,54 @@ describe("games", () => {
 			open: false,
 			observerCount: 1,
 		});
+	});
+
+	it("deals a 5-card hand to both players when the second joins", () => {
+		const state = freshState(["Alice", "Bob"]);
+		const game = expectGame(createGame(state, "Alice"));
+		expect(game.players[0].hand).toHaveLength(0);
+
+		joinGame(state, game.id, "Bob");
+
+		expect(game.turn).toBe(1);
+		expect(game.phase).toBe("deploy");
+		expect(game.scrapPile).toHaveLength(10);
+		for (const p of game.players) {
+			expect(p.hand).toHaveLength(5);
+			expect(p.deck).toHaveLength(15);
+			const all = [...p.hand, ...p.deck].map((c) => c.name);
+			expect(new Set(all).size).toBe(all.length);
+		}
+	});
+
+	it("does not re-deal hands on a rejoin", () => {
+		const state = freshState(["Alice", "Bob"]);
+		const game = expectGame(createGame(state, "Alice"));
+		joinGame(state, game.id, "Bob");
+		const before = game.players[0].hand.length;
+
+		const res = joinGame(state, game.id, "Alice");
+		expect(res).toHaveProperty("game");
+		expect((res as { role: string }).role).toBe("player");
+		expect(game.players[0].hand).toHaveLength(before);
+		expect(game.players[0].deck).toHaveLength(15);
+	});
+
+	it("lets either player delete the game", () => {
+		const state = freshState(["Alice", "Bob"]);
+		const game = expectGame(createGame(state, "Alice"));
+		joinGame(state, game.id, "Bob");
+
+		expect(deleteGame(state, game.id, "Bob")?.id).toBe(game.id);
+		expect(state.games[game.id]).toBeUndefined();
+	});
+
+	it("refuses to delete a game for a non-player", () => {
+		const state = freshState(["Alice", "Bob", "Carol"]);
+		const game = expectGame(createGame(state, "Alice"));
+		joinGame(state, game.id, "Bob");
+
+		expect(deleteGame(state, game.id, "Carol")).toBeNull();
+		expect(state.games[game.id]).toBeDefined();
 	});
 });

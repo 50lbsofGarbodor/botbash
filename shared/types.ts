@@ -30,8 +30,18 @@ export interface GamePlayer {
 	name: string;
 	starter: Card;
 	deck: Card[];
+	hand: GameCard[];
 	board: (GameCard | null)[];
 }
+
+export type GamePhase = "draw" | "deploy" | "action" | "combat" | "over";
+
+/** A player's input during a simultaneous-input phase (deploy or action). */
+export type Submission =
+	| { kind: "deploy"; handIndex: number; slot: number }
+	| { kind: "action"; handIndex: number; board: string; slot: number }
+	| { kind: "scrapHand" }
+	| { kind: "pass" };
 
 export interface Game {
 	id: string;
@@ -40,6 +50,14 @@ export interface Game {
 	observers: string[];
 	/** Shared discard/scrap pile, not part of either player's deck. */
 	scrapPile: GameCard[];
+	/** Current game phase. */
+	phase: GamePhase;
+	/** The current turn number (1-based). 0 before the game begins. */
+	turn: number;
+	/** Pending inputs for the current input phase, keyed by player name. */
+	submissions: Record<string, Submission>;
+	/** The winner's name, "draw", or null if the game isn't over. */
+	winner: string | "draw" | null;
 }
 
 /** A lightweight view of a game for lobby listings. */

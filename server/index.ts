@@ -20,6 +20,13 @@ app.get("/api/state", (_req, res) => {
 	});
 });
 
+// Test hook: wipe in-memory state so e2e runs start clean.
+app.post("/api/reset", (_req, res) => {
+	state.players = [];
+	state.games = {};
+	res.json({ ok: true });
+});
+
 io.on("connection", (socket) => {
 	socket.emit("connected", { ok: true });
 });

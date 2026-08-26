@@ -1,0 +1,101 @@
+@import "tailwindcss";
+
+@import "@fontsource/orbitron/500.css";
+@import "@fontsource/orbitron/700.css";
+
+/* Single source of truth for the rusty-neon retro palette. Konva reads these
+   at runtime via getPalette() in src/theme.ts; Tailwind's @theme references
+   them below so both share the exact same values. */
+:root {
+	--void: #0a0a14;
+	--panel: #151225;
+	--panel-deep: #0e0c18;
+
+	--neon-pink: #ff2bd6;
+	--neon-cyan: #00e5ff;
+	--neon-purple: #bd00ff;
+
+	--rust: #ff6b1a;
+	--rust-deep: #b7410e;
+
+	--ember: #ffe600;
+	--glow: #eef2ff;
+	--muted: #8b87a8;
+}
+
+@theme {
+	--font-display: "Orbitron", ui-sans-serif, system-ui, sans-serif;
+	--font-body: ui-sans-serif, system-ui, -apple-system, "Segoe UI", sans-serif;
+
+	/* Base background / panels */
+	--color-void: var(--void);
+	--color-panel: var(--panel);
+	--color-panel-deep: var(--panel-deep);
+
+	/* Neon accents */
+	--color-neon-pink: var(--neon-pink);
+	--color-neon-cyan: var(--neon-cyan);
+	--color-neon-purple: var(--neon-purple);
+
+	/* Rusty warm accents */
+	--color-rust: var(--rust);
+	--color-rust-deep: var(--rust-deep);
+
+	/* Highlights / text */
+	--color-ember: var(--ember);
+	--color-glow: var(--glow);
+	--color-muted: var(--muted);
+}
+
+@layer base {
+	html {
+		background-color: var(--color-void);
+	}
+
+	body {
+		margin: 0;
+		font-family: var(--font-body);
+		color: var(--color-glow);
+		background-color: var(--color-void);
+		background-image:
+			radial-gradient(
+				1200px 600px at 80% -10%,
+				rgba(189, 0, 255, 0.12),
+				transparent 60%
+			),
+			radial-gradient(
+				1000px 500px at -10% 10%,
+				rgba(0, 229, 255, 0.1),
+				transparent 55%
+			);
+		background-attachment: fixed;
+		min-height: 100vh;
+	}
+
+	h1,
+	h2,
+	h3 {
+		font-family: var(--font-display);
+		letter-spacing: 0.04em;
+	}
+
+	h1 {
+		font-weight: 700;
+	}
+}
+
+@utility neon-text {
+	text-shadow:
+		0 0 6px currentColor,
+		0 0 18px currentColor;
+}
+
+@utility neon-border {
+	box-shadow:
+		inset 0 0 0 1px currentColor,
+		0 0 10px color-mix(in srgb, currentColor 60%, transparent);
+}
+
+@utility neon-glow {
+	box-shadow: 0 0 12px color-mix(in srgb, currentColor 55%, transparent);
+}
