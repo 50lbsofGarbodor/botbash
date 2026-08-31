@@ -18,9 +18,9 @@ describe("cards", () => {
 		expect(duck.effect).toBeUndefined();
 	});
 
-	it("gives Light Repair a heal effect", () => {
+	it("gives Light Repair a repair effect", () => {
 		const repair = cardByName("Light Repair 1");
 		expect(repair.type).toBe("action");
-		expect(repair.effect).toEqual({ kind: "heal", amount: 1 });
+		expect(repair.effect).toEqual({ kind: "repair", amount: 1 });
 	});
 });

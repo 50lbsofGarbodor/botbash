@@ -10,7 +10,7 @@ import {
 } from "./games";
 import { getOrCreatePlayer } from "./players";
 import { submitAndAdvance } from "./gameplay";
-import type { Submission } from "../shared/types";
+import type { GameEvent, Submission } from "../shared/types";
 
 interface SocketData {
 	username?: string;
@@ -30,9 +30,9 @@ export function registerSocketHandlers(
 		io.emit("games", { games: summarizeGames(state) });
 	}
 
-	function broadcastGame(game: Game): void {
+	function broadcastGame(game: Game, events: GameEvent[] = []): void {
 		if (!state.games[game.id]) return;
-		io.to(game.id).emit("gameUpdate", { game });
+		io.to(game.id).emit("gameUpdate", { game, events });
 	}
 
 	function loggedInName(socket: { data: SocketData }): string | null {
@@ -196,7 +196,7 @@ export function registerSocketHandlers(
 				return;
 			}
 			cb?.({ ok: true, status: res.status });
-			broadcastGame(game);
+			broadcastGame(game, res.events);
 		});
 
 		socket.on("disconnect", () => {

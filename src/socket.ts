@@ -1,6 +1,12 @@
 import { io } from "socket.io-client";
 import { useGameStore } from "./store";
-import type { Game, GameSummary, Player, Submission } from "../shared/types";
+import type {
+	Game,
+	GameEvent,
+	GameSummary,
+	Player,
+	Submission,
+} from "../shared/types";
 
 /** Single shared socket connection for the whole SPA. */
 export const socket = io();
@@ -72,18 +78,21 @@ export function initSocket(): void {
 		useGameStore.getState().setGames(games);
 	});
 
-	socket.on("gameUpdate", ({ game }: { game: Game }) => {
-		useGameStore.getState().setActiveGame(game);
-		const { username } = useGameStore.getState();
-		useGameStore.getState().setMyGameId(game.id);
-		if (username) {
-			const isPlayer = game.players.some((p) => p.name === username);
-			const isObserver = game.observers.includes(username);
-			if (!isPlayer && !isObserver) {
-				useGameStore.getState().setMyGameId(null);
+	socket.on(
+		"gameUpdate",
+		({ game, events }: { game: Game; events?: GameEvent[] }) => {
+			useGameStore.getState().setActiveGame(game, events ?? []);
+			const { username } = useGameStore.getState();
+			useGameStore.getState().setMyGameId(game.id);
+			if (username) {
+				const isPlayer = game.players.some((p) => p.name === username);
+				const isObserver = game.observers.includes(username);
+				if (!isPlayer && !isObserver) {
+					useGameStore.getState().setMyGameId(null);
+				}
 			}
-		}
-	});
+		},
+	);
 
 	socket.on("gameDeleted", ({ gameId }: { gameId: string }) => {
 		const st = useGameStore.getState();

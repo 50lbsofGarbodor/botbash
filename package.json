@@ -16,6 +16,7 @@
   },
   "dependencies": {
     "@fontsource/orbitron": "^5.3.0",
+    "@react-spring/konva": "^9.7.5",
     "@tailwindcss/vite": "^4.3.3",
     "express": "^4.19.2",
     "konva": "^10.3.1",

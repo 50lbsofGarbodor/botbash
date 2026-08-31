@@ -1,6 +1,6 @@
 export type CardType = "bot" | "action";
 
-export type CardEffect = { kind: "heal"; amount: number };
+export type CardEffect = { kind: "repair"; amount: number };
 
 export type CardStatus =
 	| { kind: "temporary"; name: string; turnsRemaining: number }
@@ -17,6 +17,28 @@ export interface Card {
 
 /** A copy of a card that lives inside a game and can track runtime state. */
 export type GameCard = Card;
+
+/**
+ * A resolved play, broadcast to clients so they can animate it. `card` is the
+ * played card (face up even for opponent plays); `handIndex` refers to the
+ * slot the card came from in the player's hand before resolution.
+ */
+export type GameEvent =
+	| {
+			kind: "deploy";
+			player: string;
+			handIndex: number;
+			card: GameCard;
+			slot: number;
+	  }
+	| {
+			kind: "action";
+			player: string;
+			handIndex: number;
+			card: GameCard;
+			board: string;
+			slot: number;
+	  };
 
 /** A player's persistent identity and deck (lobby-side). */
 export interface Player {

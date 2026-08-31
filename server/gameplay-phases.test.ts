@@ -53,10 +53,19 @@ describe("deploy phase", () => {
 				handIndex: 0,
 				slot: 2,
 			}),
-		).toEqual({ ok: true, status: "waiting" });
+		).toEqual({ ok: true, status: "waiting", events: [] });
 		expect(submitAndAdvance(game, "Bob", { kind: "pass" })).toEqual({
 			ok: true,
 			status: "resolved",
+			events: [
+				{
+					kind: "deploy",
+					player: "Alice",
+					handIndex: 0,
+					card: expect.objectContaining({ name: "Robot Duck 1" }),
+					slot: 2,
+				},
+			],
 		});
 
 		expect(alice.board[2]?.name).toBe("Robot Duck 1");
@@ -115,10 +124,24 @@ describe("action phase", () => {
 			board: "Alice",
 			slot: 0,
 		});
-		submitAndAdvance(game, "Bob", { kind: "pass" });
+		const res = submitAndAdvance(game, "Bob", { kind: "pass" });
 
 		expect(target.hp.current).toBe(5);
 		expect(game.scrapPile).toHaveLength(1);
+		expect(res).toEqual({
+			ok: true,
+			status: "resolved",
+			events: [
+				{
+					kind: "action",
+					player: "Alice",
+					handIndex: 0,
+					card: expect.objectContaining({ name: "Light Repair 1" }),
+					board: "Alice",
+					slot: 0,
+				},
+			],
+		});
 	});
 
 	it("heals up to max hp", () => {

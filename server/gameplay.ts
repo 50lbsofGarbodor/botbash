@@ -1,5 +1,11 @@
 import { cardsOfType } from "../shared/cards";
-import type { Game, GameCard, GamePlayer, Submission } from "../shared/types";
+import type {
+	Game,
+	GameCard,
+	GameEvent,
+	GamePlayer,
+	Submission,
+} from "../shared/types";
 
 const clone = <T>(value: T): T => structuredClone(value);
 
@@ -129,13 +135,20 @@ export function validateSubmission(
 }
 
 /** Applies each player's deploy: move a bot from hand to an empty board slot. */
-export function resolveDeploy(game: Game): void {
+export function resolveDeploy(game: Game, events: GameEvent[]): void {
 	resolveScrapHands(game);
 	for (const player of game.players) {
 		const sub = game.submissions[player.name];
 		if (sub?.kind !== "deploy") continue;
 		const [card] = player.hand.splice(sub.handIndex, 1);
 		player.board[sub.slot] = card;
+		events.push({
+			kind: "deploy",
+			player: player.name,
+			handIndex: sub.handIndex,
+			card,
+			slot: sub.slot,
+		});
 	}
 }
 
@@ -156,13 +169,13 @@ function applyEffect(
 ): void {
 	const bot = boardOwner.board[slot];
 	if (!bot) return;
-	if (effect.kind === "heal") {
+	if (effect.kind === "repair") {
 		bot.hp.current = Math.min(bot.hp.max, bot.hp.current + effect.amount);
 	}
 }
 
 /** Applies each player's action: play a non-bot card, discard it, apply its effect. */
-export function resolveAction(game: Game): void {
+export function resolveAction(game: Game, events: GameEvent[]): void {
 	resolveScrapHands(game);
 	for (const player of game.players) {
 		const sub = game.submissions[player.name];
@@ -171,6 +184,14 @@ export function resolveAction(game: Game): void {
 		const boardOwner = game.players.find((p) => p.name === sub.board) ?? player;
 		if (card.effect) applyEffect(card.effect, boardOwner, sub.slot);
 		game.scrapPile.push(card);
+		events.push({
+			kind: "action",
+			player: player.name,
+			handIndex: sub.handIndex,
+			card,
+			board: sub.board,
+			slot: sub.slot,
+		});
 	}
 }
 
@@ -236,7 +257,7 @@ export function resolveCombat(game: Game): "over" | "continue" {
 }
 
 export type SubmitResult =
-	| { ok: true; status: "waiting" | "resolved" }
+	| { ok: true; status: "waiting" | "resolved"; events: GameEvent[] }
 	| { ok: false; error: string };
 
 /**
@@ -253,22 +274,25 @@ export function submitAndAdvance(
 
 	game.submissions[playerName] = choice;
 	const allSubmitted = game.players.every((p) => game.submissions[p.name]);
-	if (!allSubmitted) return { ok: true, status: "waiting" };
+	if (!allSubmitted) return { ok: true, status: "waiting", events: [] };
 
+	const events: GameEvent[] = [];
 	if (game.phase === "deploy") {
-		resolveDeploy(game);
+		resolveDeploy(game, events);
 		game.submissions = {};
 		game.phase = "action";
 	} else if (game.phase === "action") {
-		resolveAction(game);
+		resolveAction(game, events);
 		game.submissions = {};
 		game.phase = "combat";
-		if (resolveCombat(game) === "over") return { ok: true, status: "resolved" };
+		if (resolveCombat(game) === "over") {
+			return { ok: true, status: "resolved", events };
+		}
 		game.turn += 1;
 		game.phase = "draw";
 		runDrawPhase(game);
 		game.phase = "deploy";
 	}
 
-	return { ok: true, status: "resolved" };
+	return { ok: true, status: "resolved", events };
 }

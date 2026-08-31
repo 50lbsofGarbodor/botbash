@@ -92,6 +92,33 @@ async function clickDeploy(page: Page, handIndex: number, slot: number): Promise
 	await page.mouse.click(sp.x, sp.y);
 }
 
+async function clickActionRobust(
+	page: Page,
+	watcher: GameWatcher,
+	playerName: string,
+	handIndex: number,
+	targetSlot: number,
+): Promise<void> {
+	for (let attempt = 0; attempt < 5; attempt++) {
+		const hp = await canvasPoint(page, handCenter(handIndex).lx, handCenter(handIndex).ly);
+		await page.mouse.click(hp.x, hp.y);
+		await page.waitForTimeout(120);
+		const st = (await page.evaluate(() => (window as unknown as Record<string, unknown>).__botbash)) as {
+			selection: number | null;
+		};
+		if (st.selection !== handIndex) continue;
+		const sp = await canvasPoint(page, slotCenter(targetSlot).lx, slotCenter(targetSlot).ly);
+		await page.mouse.click(sp.x, sp.y);
+		await page.waitForTimeout(150);
+		const g = watcher.getState();
+		// The play is confirmed either by the pending submission or, if this was
+		// the final submission, by the phase already advancing to turn 2.
+		if (g?.submissions[playerName]?.kind === "action") return;
+		if (g?.turn === 2 && g?.phase === "deploy") return;
+	}
+	throw new Error(`could not play action card for ${playerName}`);
+}
+
 async function dragDeploy(page: Page, handIndex: number, slot: number): Promise<void> {
 	const hp = await canvasPoint(page, handCenter(handIndex).lx, handCenter(handIndex).ly);
 	const sp = await canvasPoint(page, slotCenter(slot).lx, slotCenter(slot).ly);
@@ -292,4 +319,81 @@ test("fresh deploy game: both players can interact (__botbash)", async ({ browse
 	}
 
 	await cleanup(s);
+});
+
+test("action cards play, animate, and both players can act again", async ({ browser }) => {
+	let s: Setup | null = null;
+	for (let attempt = 0; attempt < 10; attempt++) {
+		s = await setupGame(browser);
+		const pageErrors: string[] = [];
+		for (const page of [s.alice, s.bob]) {
+			page.on("pageerror", (e) => pageErrors.push(String(e)));
+		}
+
+		// Turn 1 deploy: both put a bot on the board.
+		const aIndex = await botHandIndex(s.watcher, s.aliceName);
+		await clickDeploy(s.alice, aIndex, 0);
+		await s.watcher.waitFor((g) => g?.submissions[s.aliceName]?.kind === "deploy");
+		const bIndex = await botHandIndex(s.watcher, s.bobName);
+		await clickDeploy(s.bob, bIndex, 2);
+		await s.watcher.waitFor((g) => g?.phase === "action");
+		await waitForPagePhase(s.alice, "action");
+		await waitForPagePhase(s.bob, "action");
+
+		// Both play an action card on their own bot if they have one, else pass.
+		const aSt = await readBotbash(s.alice);
+		const bSt = await readBotbash(s.bob);
+		const aAction = aSt.hand.findIndex((t) => t === "action");
+		const bAction = bSt.hand.findIndex((t) => t === "action");
+		if (aAction < 0 && bAction < 0) {
+			await cleanup(s);
+			s = null;
+			continue;
+		}
+		if (aAction >= 0) {
+			await clickActionRobust(s.alice, s.watcher, s.aliceName, aAction, 0);
+		} else {
+			await clickPass(s.alice);
+			await s.watcher.waitFor(
+				(g) => g?.submissions[s.aliceName]?.kind === "pass",
+			);
+		}
+		// Let Bob's page settle from Alice's broadcast before he clicks.
+		await s.bob.waitForFunction(
+			(name) => {
+				const st = (window as unknown as Record<string, unknown>).__botbash as {
+					submissions?: Record<string, unknown>;
+				};
+				return Boolean(st?.submissions?.[name]);
+			},
+			s.aliceName,
+		);
+		if (bAction >= 0) {
+			await clickActionRobust(s.bob, s.watcher, s.bobName, bAction, 2);
+		} else {
+			await clickPass(s.bob);
+			await s.watcher.waitFor(
+				(g) => g?.submissions[s.bobName]?.kind === "pass",
+			);
+		}
+
+		await s.watcher.waitFor((g) => g?.turn === 2 && g?.phase === "deploy");
+		await waitForPagePhase(s.alice, "deploy");
+		await waitForPagePhase(s.bob, "deploy");
+
+		// Regression: interaction is not stuck after the play animations.
+		for (const page of [s.alice, s.bob]) {
+			const after = (await page.evaluate(() => (window as unknown as Record<string, unknown>).__botbash)) as {
+				canAct: boolean;
+				phase: string | null;
+			};
+			expect(after.phase).toBe("deploy");
+			expect(after.canAct).toBe(true);
+		}
+		expect(pageErrors).toEqual([]);
+
+		await cleanup(s);
+		return;
+	}
+	throw new Error("could not get a game where either player has an action card in hand");
 });

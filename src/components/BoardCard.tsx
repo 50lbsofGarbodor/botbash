@@ -1,11 +1,18 @@
 import { Group, Image as KonvaImage, Rect, Text } from "react-konva";
 import type { KonvaEventObject } from "konva/lib/Node";
-import type { GameCard } from "../../shared/types";
+import type { CardEffect, GameCard } from "../../shared/types";
 import type { Palette } from "../theme";
 import { imageForCard, useCardImage } from "../cardImages";
 import { CARD_W, CARD_H, GAP } from "../boardLayout";
 
 export { CARD_W, CARD_H, GAP };
+
+export function effectLabel(effect: CardEffect): string {
+	switch (effect.kind) {
+		case "repair":
+			return `Repair ${effect.amount}`;
+	}
+}
 
 export function CardArt({
 	x,
@@ -115,23 +122,37 @@ export function CardArt({
 				height={38}
 				fill="rgba(0,0,0,0.55)"
 			/>
-			<Text
-				x={8}
-				y={CARD_H - 30}
-				text={`ATK ${card.atk}`}
-				fontSize={12}
-				fill={palette.neonCyan}
-			/>
-			<Text
-				x={0}
-				y={CARD_H - 32}
-				width={CARD_W - 8}
-				align="right"
-				text={`${card.hp.current}/${card.hp.max}`}
-				fontSize={15}
-				fontFamily="Orbitron, sans-serif"
-				fill={palette.rust}
-			/>
+			{card.type === "bot" ? (
+				<>
+					<Text
+						x={8}
+						y={CARD_H - 30}
+						text={`ATK ${card.atk}`}
+						fontSize={12}
+						fill={palette.neonCyan}
+					/>
+					<Text
+						x={0}
+						y={CARD_H - 32}
+						width={CARD_W - 8}
+						align="right"
+						text={`${card.hp.current}/${card.hp.max}`}
+						fontSize={15}
+						fontFamily="Orbitron, sans-serif"
+						fill={palette.rust}
+					/>
+				</>
+			) : (
+				<Text
+					x={0}
+					y={CARD_H - 30}
+					width={CARD_W}
+					align="center"
+					text={card.effect ? effectLabel(card.effect) : ""}
+					fontSize={13}
+					fill={palette.neonCyan}
+				/>
+			)}
 		</>,
 	);
 }

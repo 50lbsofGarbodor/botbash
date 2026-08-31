@@ -1,5 +1,5 @@
 import { create } from "zustand";
-import type { Game, GameSummary, Player } from "../shared/types";
+import type { Game, GameEvent, GameSummary, Player } from "../shared/types";
 
 const USERNAME_KEY = "botbash.username";
 
@@ -9,11 +9,13 @@ interface GameStore {
 	games: GameSummary[];
 	myGameId: string | null;
 	activeGame: Game | null;
+	pendingEvents: GameEvent[] | null;
 	setUsername: (name: string) => void;
 	setPlayers: (players: Player[]) => void;
 	setGames: (games: GameSummary[]) => void;
 	setMyGameId: (gameId: string | null) => void;
-	setActiveGame: (game: Game | null) => void;
+	setActiveGame: (game: Game | null, events?: GameEvent[] | null) => void;
+	clearEvents: () => void;
 }
 
 export const useGameStore = create<GameStore>((set) => ({
@@ -22,6 +24,7 @@ export const useGameStore = create<GameStore>((set) => ({
 	games: [],
 	myGameId: null,
 	activeGame: null,
+	pendingEvents: null,
 	setUsername: (username) => {
 		localStorage.setItem(USERNAME_KEY, username);
 		set({ username });
@@ -29,5 +32,7 @@ export const useGameStore = create<GameStore>((set) => ({
 	setPlayers: (players) => set({ players }),
 	setGames: (games) => set({ games }),
 	setMyGameId: (myGameId) => set({ myGameId }),
-	setActiveGame: (activeGame) => set({ activeGame }),
+	setActiveGame: (activeGame, pendingEvents = null) =>
+		set({ activeGame, pendingEvents }),
+	clearEvents: () => set({ pendingEvents: null }),
 }));

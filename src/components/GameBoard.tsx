@@ -2,13 +2,14 @@ import { useEffect, useRef, useState } from "react";
 import { Group, Layer, Rect, Stage, Text } from "react-konva";
 import type { KonvaEventObject } from "konva/lib/Node";
 import type { Stage as KonvaStage } from "konva/lib/Stage";
-import type { Game, GameCard, Submission } from "../../shared/types";
+import type { Game, GameCard, GameEvent, Submission } from "../../shared/types";
 import { getPalette } from "../theme";
 import { CardArt } from "./BoardCard";
 import { CardStack } from "./CardStack";
 import { GameButton } from "./Controls";
 import { CurrentZone } from "./CurrentZone";
 import { OpponentZone } from "./OpponentZone";
+import { PlayEffects } from "./PlayEffects";
 import {
 	CARD_H,
 	CARD_W,
@@ -35,6 +36,8 @@ export default function GameBoard({
 	selectedHandIndex,
 	validTargets,
 	pendingChoice,
+	events,
+	onAnimationsComplete,
 	onHandClick,
 	onBoardClick,
 	onDragHand,
@@ -49,6 +52,8 @@ export default function GameBoard({
 	selectedHandIndex: number | null;
 	validTargets: Set<string>;
 	pendingChoice?: Submission | null;
+	events?: GameEvent[] | null;
+	onAnimationsComplete?: () => void;
 	onHandClick?: (handIndex: number, card: GameCard) => void;
 	onBoardClick?: (boardOwner: string, slot: number) => void;
 	onDragHand?: (handIndex: number, boardOwner: string, slot: number) => void;
@@ -286,7 +291,13 @@ export default function GameBoard({
 							/>
 
 							{/* Ghost preview of the viewer's pending action */}
-							{pendingGhost}
+							{!events?.length && pendingGhost}
+							<PlayEffects
+								events={events ?? []}
+								viewer={username}
+								palette={palette}
+								onComplete={onAnimationsComplete ?? (() => {})}
+							/>
 						</Group>
 					</Layer>
 				</Stage>

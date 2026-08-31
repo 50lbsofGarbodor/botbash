@@ -16,7 +16,7 @@ const repair: Omit<Card, "name"> = {
 	atk: 0,
 	hp: { current: 0, max: 0 },
 	status: [],
-	effect: { kind: "heal", amount: 1 },
+	effect: { kind: "repair", amount: 1 },
 };
 
 /** The master list of all cards in the game. Never mutated at runtime. */

@@ -29,12 +29,16 @@ function targetIsValid(
 export default function Game() {
 	const { uuid } = useParams<{ uuid: string }>();
 	const username = useGameStore((s) => s.username);
-	const activeGame = useGameStore((s) => s.activeGame);
+	const storeGame = useGameStore((s) => s.activeGame);
+	const events = useGameStore((s) => s.pendingEvents);
 
 	const [selection, setSelection] = useState<{
 		handIndex: number;
 		card: GameCard;
 	} | null>(null);
+	// The game currently rendered. While play events animate, this stays on the
+	// pre-resolution snapshot and only advances once the animation completes.
+	const [displayGame, setDisplayGame] = useState<GameState | null>(storeGame);
 	const lastPhase = useRef<string | undefined>(undefined);
 	const navigate = useNavigate();
 
@@ -65,25 +69,54 @@ export default function Game() {
 		}
 	}, [uuid, username, navigate]);
 
+	// Hold the current snapshot while play events animate; otherwise follow the
+	// server's latest state immediately.
 	useEffect(() => {
-		if (lastPhase.current !== activeGame?.phase) {
-			lastPhase.current = activeGame?.phase;
+		if (events && events.length > 0) return;
+		setDisplayGame(storeGame);
+	}, [storeGame, events]);
+
+	function handleAnimationsComplete() {
+		const latest = useGameStore.getState().activeGame;
+		setDisplayGame(latest);
+		useGameStore.getState().clearEvents();
+	}
+
+	useEffect(() => {
+		if (lastPhase.current !== displayGame?.phase) {
+			lastPhase.current = displayGame?.phase;
 			setSelection(null);
 		}
-	}, [activeGame?.phase]);
+	}, [displayGame?.phase]);
 
-	const phase = activeGame?.phase;
+	const phase = displayGame?.phase;
 	const isPlayer =
-		activeGame?.players.some((p) => p.name === username) ?? false;
-	const isObserver = activeGame?.observers.includes(username) ?? false;
-	const me = activeGame?.players.find((p) => p.name === username);
+		displayGame?.players.some((p) => p.name === username) ?? false;
+	const isObserver = displayGame?.observers.includes(username) ?? false;
+	const me = displayGame?.players.find((p) => p.name === username);
 	const isInputPhase = phase === "deploy" || phase === "action";
 	// Interaction is gated by authoritative server state, so it can never
 	// desync or get stuck: once I've submitted, submissions[username] is set;
 	// it is cleared by the server when the phase resolves.
 	const mySubmission =
-		isPlayer && activeGame ? (activeGame.submissions[username] ?? null) : null;
-	const canAct = isPlayer && isInputPhase && !mySubmission;
+		isPlayer && displayGame
+			? (displayGame.submissions[username] ?? null)
+			: null;
+	const canAct =
+		isPlayer && isInputPhase && !mySubmission && !(events && events.length > 0);
+
+	const validTargets = useMemo(() => {
+		const set = new Set<string>();
+		if (!canAct || !selection || !displayGame) return set;
+		for (const p of displayGame.players) {
+			p.board.forEach((_slot, i) => {
+				if (targetIsValid(displayGame, username, phase, p.name, i)) {
+					set.add(`${p.name}:${i}`);
+				}
+			});
+		}
+		return set;
+	}, [canAct, selection, displayGame, phase, username]);
 
 	// Debug hook: expose the values driving interaction for diagnosis.
 	useEffect(() => {
@@ -96,10 +129,12 @@ export default function Game() {
 			isInputPhase,
 			mySubmission,
 			canAct,
-			submissions: activeGame?.submissions ?? {},
+			submissions: displayGame?.submissions ?? {},
 			hand: hand.map((c) => c.type) ?? [],
 			interactive: hand.map((c) => canAct && isPlayable(phase ?? "", c)),
 			selection: selection?.handIndex ?? null,
+			validTargets: [...validTargets],
+			pendingEvents: events?.length ?? 0,
 		};
 	}, [
 		username,
@@ -108,39 +143,28 @@ export default function Game() {
 		isInputPhase,
 		mySubmission,
 		canAct,
-		activeGame,
+		displayGame,
 		me,
 		selection,
+		validTargets,
+		events,
 	]);
-
-	const validTargets = useMemo(() => {
-		const set = new Set<string>();
-		if (!canAct || !selection || !activeGame) return set;
-		for (const p of activeGame.players) {
-			p.board.forEach((_slot, i) => {
-				if (targetIsValid(activeGame, username, phase, p.name, i)) {
-					set.add(`${p.name}:${i}`);
-				}
-			});
-		}
-		return set;
-	}, [canAct, selection, activeGame, phase, username]);
 
 	// Whether the current player has any legal card play this phase. When false,
 	// the Pass / Scrap Hand controls are highlighted/offered.
 	const hasLegalAction = useMemo(() => {
-		if (!activeGame || !me) return false;
+		if (!displayGame || !me) return false;
 		if (phase === "deploy") {
 			return me.hand.some((c) => c.type === "bot") && me.board.some((s) => !s);
 		}
 		if (phase === "action") {
 			return (
 				me.hand.some((c) => c.type === "action") &&
-				activeGame.players.some((p) => p.board.some((b) => b))
+				displayGame.players.some((p) => p.board.some((b) => b))
 			);
 		}
 		return false;
-	}, [activeGame, me, phase]);
+	}, [displayGame, me, phase]);
 
 	function submitChoice(choice: Submission) {
 		emitSubmit(choice, (res) => {
@@ -176,7 +200,7 @@ export default function Game() {
 	function onBoardClick(owner: string, slot: number) {
 		if (
 			!selection ||
-			!targetIsValid(activeGame, username, phase, owner, slot)
+			!targetIsValid(displayGame, username, phase, owner, slot)
 		) {
 			return;
 		}
@@ -194,7 +218,7 @@ export default function Game() {
 
 	function onDragHand(handIndex: number, owner: string, slot: number) {
 		const card = me?.hand[handIndex];
-		if (!card || !targetIsValid(activeGame, username, phase, owner, slot)) {
+		if (!card || !targetIsValid(displayGame, username, phase, owner, slot)) {
 			return;
 		}
 		if (phase === "deploy" && card.type === "bot") {
@@ -204,7 +228,7 @@ export default function Game() {
 		}
 	}
 
-	if (!activeGame || activeGame.id !== uuid) {
+	if (!displayGame || displayGame.id !== uuid) {
 		return (
 			<div className="flex min-h-screen items-center justify-center text-neon-cyan">
 				<p className="font-display text-sm uppercase tracking-widest neon-text">
@@ -216,7 +240,7 @@ export default function Game() {
 
 	const statusText = !isPlayer
 		? "Observing"
-		: activeGame.phase === "over"
+		: displayGame.phase === "over"
 			? "Game over"
 			: mySubmission
 				? "Submitted"
@@ -239,7 +263,7 @@ export default function Game() {
 			<header className="mb-6 flex items-center justify-between">
 				<div>
 					<h1 className="text-2xl text-neon-pink neon-text">
-						GAME #{activeGame.id.slice(0, 8)}
+						GAME #{displayGame.id.slice(0, 8)}
 					</h1>
 					{isObserver && (
 						<p className="mt-1 text-xs uppercase tracking-widest text-neon-purple">
@@ -261,16 +285,18 @@ export default function Game() {
 
 			<div className="h-[70vh] min-h-[480px] w-full rounded-lg border border-neon-purple/40 bg-panel p-3 neon-border">
 				<GameBoard
-					game={activeGame}
+					game={displayGame}
 					username={username}
 					hand={Object.fromEntries(
-						activeGame.players.map((p) => [p.name, p.hand]),
+						displayGame.players.map((p) => [p.name, p.hand]),
 					)}
 					canAct={canAct}
 					hasLegalAction={hasLegalAction}
 					selectedHandIndex={selection?.handIndex ?? null}
 					validTargets={validTargets}
 					pendingChoice={mySubmission}
+					events={events}
+					onAnimationsComplete={handleAnimationsComplete}
 					onHandClick={onHandClick}
 					onBoardClick={onBoardClick}
 					onDragHand={onDragHand}
