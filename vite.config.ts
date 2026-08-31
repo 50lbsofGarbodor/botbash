@@ -9,4 +9,7 @@ export default defineConfig({
     environment: 'node',
     include: ['**/*.test.ts', '**/*.test.tsx'],
   },
+  server: {
+    allowedHosts: ["botbash.homework.quest"]
+  }
 })
