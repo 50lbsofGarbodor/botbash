@@ -11,6 +11,15 @@ const duck: Omit<Card, "name"> = {
 	status: [],
 };
 
+
+const breadson: Omit<Card, "name"> = {
+    type: "bot",
+    atk: 3,
+    hp: { current: 4, max: 4},
+    status: []
+};
+
+
 const repair: Omit<Card, "name"> = {
 	type: "action",
 	atk: 0,
@@ -36,7 +45,8 @@ const mspaint: Omit<Card, "name"> = {
 
 /** The master list of all cards in the game. Never mutated at runtime. */
 export const cards: Card[] = [
-	...range(10).map((n) => ({ ...duck, name: `Robot Duck ${n}` })),
+	...range(2).map((n) => ({ ...breadson, name: `Breadson ${n}` })),
+	...range(8).map((n) => ({ ...duck, name: `Robot Duck ${n}` })),
 	...range(25).map((n) => ({ ...repair, name: `Light Repair ${n}` })),
 	...range(25).map((n) => ({ ...zap, name: `Zap ${n}` })),
 	...range(10).map((n) => ({ ...mspaint, name: `MS Paint Duck ${n}` })),
