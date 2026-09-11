@@ -2,10 +2,10 @@ import { describe, expect, it } from "vitest";
 import { cards, cardByName, cardsOfType } from "./cards";
 
 describe("cards", () => {
-	it("has 10 unique robot duck bots and 50 unique light repairs", () => {
+	it("has 10 unique robot duck bots 10 unique ms paint duck and 50 unique light repairs", () => {
 		const bots = cardsOfType("bot");
 		const actions = cardsOfType("action");
-		expect(bots).toHaveLength(10);
+		expect(bots).toHaveLength(20);
 		expect(actions).toHaveLength(50);
 		expect(new Set(cards.map((c) => c.name)).size).toBe(cards.length);
 	});
